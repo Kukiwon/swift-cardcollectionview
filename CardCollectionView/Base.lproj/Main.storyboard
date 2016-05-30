@@ -59,13 +59,26 @@
                                     <constraint firstAttribute="height" constant="128" id="AtC-me-CJn"/>
                                 </constraints>
                             </view>
+                            <toolbar opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="482-sx-kcY">
+                                <rect key="frame" x="0.0" y="556" width="600" height="44"/>
+                                <items>
+                                    <barButtonItem title="Select 2nd Card" id="ASl-pY-vcH">
+                                        <connections>
+                                            <action selector="selectSecondCard:" destination="R8s-Lp-D0D" id="WUr-9a-dWw"/>
+                                        </connections>
+                                    </barButtonItem>
+                                </items>
+                            </toolbar>
                         </subviews>
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                         <constraints>
+                            <constraint firstAttribute="trailingMargin" secondItem="482-sx-kcY" secondAttribute="trailing" constant="-20" id="E12-bt-VQS"/>
                             <constraint firstItem="hrm-iz-bx8" firstAttribute="top" secondItem="d8Z-yd-gIh" secondAttribute="bottom" id="Pqk-O2-vQn"/>
                             <constraint firstAttribute="leadingMargin" secondItem="hrm-iz-bx8" secondAttribute="leading" id="g6x-wN-tnm"/>
                             <constraint firstItem="hrm-iz-bx8" firstAttribute="top" secondItem="d8Z-yd-gIh" secondAttribute="bottom" constant="216" id="gaB-dD-m9V"/>
                             <constraint firstItem="hrm-iz-bx8" firstAttribute="centerY" secondItem="1fa-d6-cXD" secondAttribute="centerY" id="gsk-ew-JtN"/>
+                            <constraint firstItem="iwY-m3-Myy" firstAttribute="top" secondItem="482-sx-kcY" secondAttribute="bottom" id="jeT-R3-41b"/>
+                            <constraint firstItem="482-sx-kcY" firstAttribute="leading" secondItem="1fa-d6-cXD" secondAttribute="leadingMargin" constant="-20" id="pJl-XT-Cbb"/>
                             <constraint firstAttribute="trailingMargin" secondItem="hrm-iz-bx8" secondAttribute="trailing" id="wGC-KK-5rV"/>
                         </constraints>
                         <variation key="default">

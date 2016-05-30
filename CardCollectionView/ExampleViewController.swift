@@ -32,5 +32,9 @@ class ExampleViewController: UIViewController, CardCollectionViewDataSource {
     func cardAtIndexForCollectionView(cardCollectionView: CardCollectionView, index: Int) -> CardView {
         return cards[index]
     }
+    
+    @IBAction func selectSecondCard(sender: UIBarButtonItem) {
+        cardCollectionView.selectCardAtIndex(1)
+    }
 }
 
