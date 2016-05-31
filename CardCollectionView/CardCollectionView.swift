@@ -14,8 +14,12 @@ protocol CardCollectionViewDataSource {
 }
 
 internal enum CardViewTransition {
-    case In
+    case InFromBottom
+    case InFromRight
+    case InFromLeft
+    case InFromTop
     case Out
+    case OutRight
 }
 
 class CardCollectionView: UIView {
@@ -58,9 +62,10 @@ class CardCollectionView: UIView {
         
         cardView.gestureRecognizers?.removeAll()
         cardView.translatesAutoresizingMaskIntoConstraints = false
+        cardView.index = index ?? 0
     
         if animated {
-            transitionCardView(cardView, transition: .In)
+            transitionCardView(cardView, transition: .InFromBottom)
         }
         
         // Add the card to the collection view
@@ -136,15 +141,6 @@ class CardCollectionView: UIView {
         }
     }
     
-    func handleSwipeGesture(recognizer: UISwipeGestureRecognizer) {
-        guard let cardView = recognizer.view as? CardView else { return }
-        switch recognizer.state {
-        case .Began:
-            segueToNextCardView(fromCurrentCardView: cardView)
-        default: break
-        }
-    }
-    
     /**
      Given a layer and a transformation, animated the layer from the current transform to the specified one.
      */
@@ -155,7 +151,7 @@ class CardCollectionView: UIView {
         let animation = CABasicAnimation(keyPath: "transform")
         animation.fromValue = NSValue(CATransform3D: layer.transform)
         animation.toValue = NSValue(CATransform3D: transform)
-        animation.duration = 0.2
+        animation.duration = 1
         animation.timingFunction = CAMediaTimingFunction.init(name: timingFunctionName)
         layer.addAnimation(animation, forKey: "transform")
         
@@ -168,6 +164,7 @@ class CardCollectionView: UIView {
         }
         
         CATransaction.commit()
+        layer.transform = transform
     }
     
     /**
@@ -184,6 +181,40 @@ class CardCollectionView: UIView {
         t = CATransform3DTranslate(t, dX, dY, 0)
         t = CATransform3DScale(t, 1 - (scaleX * cGIndex), 1, 1)
         return t
+    }
+    
+    func segueCard(fromIndex fromIndex: Int, toIndex: Int) {
+        // Ensure that there is a datasource set
+        guard let dataSource = dataSource else {
+            fatalError("Card collection view has no data source.")
+        }
+        
+        // Ensure that the index is within bounds
+        guard fromIndex >= 0 && fromIndex < dataSource.numberOfCardsForCollectionView(self) else {
+            fatalError("fromIndex out of bounds!")
+        }
+        
+        // Ensure that the index is within bounds
+        guard toIndex >= 0 && toIndex < dataSource.numberOfCardsForCollectionView(self) else {
+            fatalError("toIndex out of bounds!")
+        }
+        
+        // First segue out the destination card view
+        let fromCardView = dataSource.cardAtIndexForCollectionView(self, index: fromIndex)
+        transitionCardView(fromCardView, transition: .OutRight) {
+            // Transition other cards to their correct position
+            for view in self.subviews {
+                guard let cardView = view as? CardView where view != fromCardView else { continue }
+                if fromCardView.index > cardView.index {
+                    cardView.index += 1
+                }
+                let t = self.initialTransformForCardViewAtIndex(cardView.index)
+                self.animateLayerToTransform(cardView.layer, transform: t)
+            }
+            
+            fromCardView.layer.zPosition = CGFloat(self.subviews.count)
+            self.transitionCardView(fromCardView, transition: .InFromRight)
+        }
     }
     
     func segueToNextCardView(fromCurrentCardView cardView: CardView) {
@@ -210,33 +241,51 @@ class CardCollectionView: UIView {
     }
     
     // #warning: - wrong implementation! in transition should end up on top
-    func transitionCardView(cardView: CardView, transition: CardViewTransition) {
+    func transitionCardView(cardView: CardView, transition: CardViewTransition, onComplete: (Void -> Void)? = nil) {
         switch transition {
-        case .In:
-            let totalCards = dataSource!.numberOfCardsForCollectionView(self) - 1
+        case .InFromBottom:
+            let totalAmountOfCards = (dataSource?.numberOfCardsForCollectionView(self) ?? 0) - 1
             cardView.layer.opacity = 0
-            var t = initialTransformForCardViewAtIndex(totalCards)
+            var t = initialTransformForCardViewAtIndex(totalAmountOfCards)
             t = CATransform3DTranslate(t, cardView.bounds.size.width + 100 , 0, 0)
             cardView.layer.transform = t
-            animateLayerToTransform(cardView.layer, transform: initialTransformForCardViewAtIndex(totalCards))
+            animateLayerToTransform(cardView.layer, transform: initialTransformForCardViewAtIndex(totalAmountOfCards), timingFunctionName: kCAMediaTimingFunctionEaseOut, completion: onComplete)
             cardView.layer.opacity = 1
-            cardView.layer.transform = initialTransformForCardViewAtIndex(totalCards)
+            cardView.layer.transform = initialTransformForCardViewAtIndex(totalAmountOfCards)
+        case .InFromRight:
+            var t = initialTransformForCardViewAtIndex(0)
+            cardView.layer.opacity = 0
+            t = CATransform3DTranslate(t, cardView.bounds.size.width + 100 , 0, 0)
+            cardView.layer.transform = t
+            animateLayerToTransform(cardView.layer, transform: initialTransformForCardViewAtIndex(0), timingFunctionName: kCAMediaTimingFunctionEaseOut, completion: onComplete)
+            cardView.layer.opacity = 1
         case .Out:
             var t = CATransform3DIdentity
             t = CATransform3DTranslate(t, cardView.bounds.width + 100, 0, 0)
             animateLayerToTransform(cardView.layer, transform: t, timingFunctionName: kCAMediaTimingFunctionEaseOut) {
+                
+                cardView.removeFromSuperview()
+                
                 // Animate remaining views to their new positions
-                for (index, cardView) in self.subviews.reverse().enumerate() {
-                    let t = self.initialTransformForCardViewAtIndex(index)
-                    self.animateLayerToTransform(cardView.layer, transform: t)
-                    cardView.layer.transform = t
+                for cV in self.subviews {
+                    guard let cV = cV as? CardView where cV != cardView else { continue }
+                    let t = self.initialTransformForCardViewAtIndex(cV.index)
+                    self.animateLayerToTransform(cV.layer, transform: t)
+                    cV.layer.transform = t
+                    cV.index -= 1
                 }
                 
                 self.addCard(self.dataSource!.cardAtIndexForCollectionView(self, index: cardView.index), atIndex: cardView.index, animated: true)
                 let lastCard = self.subviews.last as! CardView
                 self.addPanGestureRecognizerForCardView(lastCard)
+                onComplete?()
             }
             cardView.layer.transform = t
+        case .OutRight:
+            var t = initialTransformForCardViewAtIndex(cardView.index)
+            t = CATransform3DTranslate(t, cardView.bounds.width + 100, 0, 0)
+            animateLayerToTransform(cardView.layer, transform: t, timingFunctionName: kCAMediaTimingFunctionEaseOut, completion: onComplete)
+        default: break
         }
     }
     
@@ -257,10 +306,18 @@ class CardCollectionView: UIView {
             return
         }
         
+        
         let card = dataSource.cardAtIndexForCollectionView(self, index: index)
-        if let lastCard = self.subviews.last as? CardView {
-            transitionCardView(lastCard, transition: .Out)
-            transitionCardView(card, transition: .In)
-        }
+        segueCard(fromIndex: card.index, toIndex: 0)
+        
+//        if let lastCard = self.subviews.last as? CardView {
+//            transitionCardView(lastCard, transition: .Out) {
+//                self.transitionCardView(card, transition: .Out) {
+//                    self.addCard(card, atIndex: dataSource.numberOfCardsForCollectionView(self) - 1)
+//                    let lastCard = self.subviews.last as! CardView
+//                    self.addPanGestureRecognizerForCardView(lastCard)
+//                }
+//            }
+//        }
     }
 }
